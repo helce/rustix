@@ -600,6 +600,13 @@ bitflags! {
         /// `MFD_HUGETLB` (since Linux 4.14)
         const HUGETLB = c::MFD_HUGETLB;
 
+        /// `MFD_NOEXEC_SEAL` (since Linux 6.3)
+        #[cfg(linux_kernel)]
+        const NOEXEC_SEAL = c::MFD_NOEXEC_SEAL;
+        /// `MFD_EXEC` (since Linux 6.3)
+        #[cfg(linux_kernel)]
+        const EXEC = c::MFD_EXEC;
+
         /// `MFD_HUGE_64KB`
         const HUGE_64KB = c::MFD_HUGE_64KB;
         /// `MFD_HUGE_512JB`
@@ -782,7 +789,6 @@ bitflags! {
 #[cfg(not(any(
     netbsdlike,
     solarish,
-    target_os = "aix",
     target_os = "espidf",
     target_os = "nto",
     target_os = "redox",
