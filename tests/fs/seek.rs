@@ -1,4 +1,4 @@
-/// Test seek positions related to file "holes".
+/// Test seek positions related to file “holes”.
 #[cfg(any(apple, freebsdlike, linux_kernel, solarish))]
 #[test]
 fn test_seek_holes() {
@@ -61,9 +61,9 @@ fn test_seek_holes() {
 
 #[test]
 fn test_seek_offsets() {
-    use rustix::fs::{openat, seek, Mode, OFlags, SeekFrom, CWD};
+    use rustix::fs::{open, seek, Mode, OFlags, SeekFrom};
 
-    let f = openat(CWD, "Cargo.toml", OFlags::RDONLY, Mode::empty()).unwrap();
+    let f = open("Cargo.toml", OFlags::RDONLY, Mode::empty()).unwrap();
 
     match seek(&f, SeekFrom::Start(0)) {
         Ok(_) => {}

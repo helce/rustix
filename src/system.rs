@@ -109,11 +109,11 @@ impl Uname {
 }
 
 impl fmt::Debug for Uname {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(not(linux_kernel))]
         {
             write!(
-                fmt,
+                f,
                 "{:?} {:?} {:?} {:?} {:?}",
                 self.sysname(),
                 self.nodename(),
@@ -125,7 +125,7 @@ impl fmt::Debug for Uname {
         #[cfg(linux_kernel)]
         {
             write!(
-                fmt,
+                f,
                 "{:?} {:?} {:?} {:?} {:?} {:?}",
                 self.sysname(),
                 self.nodename(),
@@ -201,7 +201,7 @@ pub enum RebootCommand {
     SwSuspend = c::LINUX_REBOOT_CMD_SW_SUSPEND,
 }
 
-/// `reboot`—Reboot the system or enable/disable Ctrl-Alt-Del
+/// `reboot`—Reboot the system or enable/disable Ctrl-Alt-Del.
 ///
 /// The reboot syscall, despite the name, can actually do much more than
 /// reboot.
@@ -224,7 +224,7 @@ pub fn reboot(cmd: RebootCommand) -> io::Result<()> {
     backend::system::syscalls::reboot(cmd)
 }
 
-/// `init_module`—Load a kernel module
+/// `init_module`—Load a kernel module.
 ///
 /// # References
 /// - [Linux]
@@ -236,7 +236,7 @@ pub fn init_module(image: &[u8], param_values: &CStr) -> io::Result<()> {
     backend::system::syscalls::init_module(image, param_values)
 }
 
-/// `finit_module`—Load a kernel module from a file descriptor
+/// `finit_module`—Load a kernel module from a file descriptor.
 ///
 /// # References
 /// - [Linux]
@@ -248,7 +248,7 @@ pub fn finit_module<Fd: AsFd>(fd: Fd, param_values: &CStr, flags: c_int) -> io::
     backend::system::syscalls::finit_module(fd.as_fd(), param_values, flags)
 }
 
-/// `delete_module`—Unload a kernel module
+/// `delete_module`—Unload a kernel module.
 ///
 /// # References
 /// - [Linux]

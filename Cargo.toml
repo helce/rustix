@@ -1,6 +1,6 @@
 [package]
 name = "rustix"
-version = "0.38.34"
+version = "0.38.35"
 authors = [
     "Dan Gohman <dev@sunfishcode.online>",
     "Jakub Konka <kubkon@jakubkonka.com>",
@@ -21,7 +21,7 @@ itoa = { version = "1.0.1", default-features = false, optional = true }
 
 # Special dependencies used in rustc-dep-of-std mode.
 core = { version = "1.0.0", optional = true, package = "rustc-std-workspace-core" }
-alloc = { version = "1.0.0", optional = true, package = "rustc-std-workspace-alloc" }
+rustc-std-workspace-alloc = { version = "1.0.0", optional = true } # not aliased here but in lib.rs casuse of name collision with the alloc feature
 compiler_builtins = { version = '0.1.49', optional = true }
 
 # The procfs feature needs once_cell.
@@ -36,9 +36,9 @@ once_cell = { version = "1.5.2", optional = true }
 # libc backend can be selected via adding `--cfg=rustix_use_libc` to
 # `RUSTFLAGS` or enabling the `use-libc` cargo feature.
 [target.'cfg(all(not(rustix_use_libc), not(miri), target_os = "linux", target_endian = "little", any(target_arch = "arm", all(target_arch = "aarch64", target_pointer_width = "64"), target_arch = "riscv64", all(rustix_use_experimental_asm, target_arch = "powerpc64"), all(rustix_use_experimental_asm, target_arch = "mips"), all(rustix_use_experimental_asm, target_arch = "mips32r6"), all(rustix_use_experimental_asm, target_arch = "mips64"), all(rustix_use_experimental_asm, target_arch = "mips64r6"), target_arch = "x86", all(target_arch = "x86_64", target_pointer_width = "64"), target_arch = "e2k")))'.dependencies]
-linux-raw-sys = { version = "0.4.12", default-features = false, features = ["general", "errno", "ioctl", "no_std", "elf"] }
+linux-raw-sys = { version = "0.4.14", default-features = false, features = ["general", "errno", "ioctl", "no_std", "elf"] }
 libc_errno = { package = "errno", version = "0.3.8", default-features = false, optional = true }
-libc = { version = "0.2.153", default-features = false, optional = true }
+libc = { version = "0.2.156", default-features = false, optional = true }
 
 # Dependencies for platforms where only libc is supported:
 #
@@ -46,14 +46,14 @@ libc = { version = "0.2.153", default-features = false, optional = true }
 # backend, so enable its dependencies unconditionally.
 [target.'cfg(all(not(windows), any(rustix_use_libc, miri, not(all(target_os = "linux", target_endian = "little", any(target_arch = "arm", all(target_arch = "aarch64", target_pointer_width = "64"), target_arch = "riscv64", all(rustix_use_experimental_asm, target_arch = "powerpc64"), all(rustix_use_experimental_asm, target_arch = "mips"), all(rustix_use_experimental_asm, target_arch = "mips32r6"), all(rustix_use_experimental_asm, target_arch = "mips64"), all(rustix_use_experimental_asm, target_arch = "mips64r6"), target_arch = "x86", all(target_arch = "x86_64", target_pointer_width = "64"), target_arch = "e2k"))))))'.dependencies]
 libc_errno = { package = "errno", version = "0.3.8", default-features = false }
-libc = { version = "0.2.153", default-features = false }
+libc = { version = "0.2.156", default-features = false }
 
 # Additional dependencies for Linux with the libc backend:
 #
 # Some syscalls do not have libc wrappers, such as in `io_uring`. For these,
 # the libc backend uses the linux-raw-sys ABI and `libc::syscall`.
 [target.'cfg(all(any(target_os = "android", target_os = "linux"), any(rustix_use_libc, miri, not(all(target_os = "linux", target_endian = "little", any(target_arch = "arm", all(target_arch = "aarch64", target_pointer_width = "64"), target_arch = "riscv64", all(rustix_use_experimental_asm, target_arch = "powerpc64"), all(rustix_use_experimental_asm, target_arch = "mips"), all(rustix_use_experimental_asm, target_arch = "mips32r6"), all(rustix_use_experimental_asm, target_arch = "mips64"), all(rustix_use_experimental_asm, target_arch = "mips64r6"), target_arch = "x86", all(target_arch = "x86_64", target_pointer_width = "64"), target_arch = "e2k"))))))'.dependencies]
-linux-raw-sys = { version = "0.4.12", default-features = false, features = ["general", "ioctl", "no_std"] }
+linux-raw-sys = { version = "0.4.14", default-features = false, features = ["general", "ioctl", "no_std"] }
 
 # For the libc backend on Windows, use the Winsock API in windows-sys.
 [target.'cfg(windows)'.dependencies.windows-sys]
@@ -74,7 +74,7 @@ default-features = false
 
 [dev-dependencies]
 tempfile = "3.5.0"
-libc = "0.2.153"
+libc = "0.2.156"
 libc_errno = { package = "errno", version = "0.3.8", default-features = false }
 serial_test = "2.0.0"
 memoffset = "0.9.0"
@@ -84,9 +84,6 @@ static_assertions = "1.1.0"
 [target.'cfg(all(criterion, not(any(target_os = "emscripten", target_os = "wasi"))))'.dev-dependencies]
 criterion = "0.4"
 
-[target.'cfg(windows)'.dev-dependencies]
-ctor = "0.2.0"
-
 # Add Criterion configuration, as described here:
 # <https://bheisler.github.io/criterion.rs/book/getting_started.html#step-1---add-dependency-to-cargotoml>
 [[bench]]
@@ -95,7 +92,6 @@ harness = false
 
 [package.metadata.docs.rs]
 features = ["all-apis"]
-rustdoc-args = ["--cfg", "doc_cfg"]
 targets = [
     "x86_64-unknown-linux-gnu",
     "i686-unknown-linux-gnu",
@@ -186,8 +182,8 @@ stdio = []
 # Enable `rustix::system::*`.
 system = ["linux-raw-sys/system"]
 
-# Enable `rustix::runtime::*`. This API is undocumented and unstable and
-# experimental and not intended for general-purpose use.
+# Enable `rustix::runtime::*`. ⚠ This API is undocumented and unstable and
+# experimental and not intended for general-purpose use. ⚠
 runtime = ["linux-raw-sys/prctl"]
 
 # Enable all API features.
@@ -238,9 +234,9 @@ alloc = []
 # This is used in the port of std to rustix. This is experimental and not meant
 # for regular use.
 rustc-dep-of-std = [
-    "dep:core",
-    "dep:alloc",
-    "dep:compiler_builtins",
+    "core",
+    "rustc-std-workspace-alloc",
+    "compiler_builtins",
     "linux-raw-sys/rustc-dep-of-std",
     "bitflags/rustc-dep-of-std",
     "compiler_builtins?/rustc-dep-of-std",
@@ -248,3 +244,37 @@ rustc-dep-of-std = [
 
 # Obsolete and deprecated.
 cc = []
+
+# Enable `rustix::io::try_close`. The rustix developers do not intend the
+# existence of this feature to imply that anyone should use it.
+try_close = []
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    'cfg(alloc_c_string)',
+    'cfg(alloc_ffi)',
+    'cfg(apple)',
+    'cfg(asm_experimental_arch)',
+    'cfg(bsd)',
+    'cfg(core_c_str)',
+    'cfg(core_ffi_c)',
+    'cfg(core_intrinsics)',
+    'cfg(criterion)',
+    'cfg(document_experimental_runtime_api)',
+    'cfg(fix_y2038)',
+    'cfg(freebsdlike)',
+    'cfg(libc)',
+    'cfg(linux_kernel)',
+    'cfg(linux_like)',
+    'cfg(linux_raw)',
+    'cfg(netbsdlike)',
+    'cfg(rustc_attrs)',
+    'cfg(solarish)',
+    'cfg(staged_api)',
+    'cfg(static_assertions)',
+    'cfg(thumb_mode)',
+    'cfg(wasi)',
+    'cfg(wasi_ext)',
+    'cfg(target_arch, values("xtensa"))',
+]

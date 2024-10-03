@@ -97,6 +97,7 @@ macro_rules! cmsg_aligned_space {
     }};
 }
 
+/// Helper function for [`cmsg_space`].
 #[doc(hidden)]
 pub const fn __cmsg_space(len: usize) -> usize {
     // Add `align_of::<c::cmsghdr>()` so that we can align the user-provided
@@ -106,6 +107,7 @@ pub const fn __cmsg_space(len: usize) -> usize {
     __cmsg_aligned_space(len)
 }
 
+/// Helper function for [`cmsg_aligned_space`].
 #[doc(hidden)]
 pub const fn __cmsg_aligned_space(len: usize) -> usize {
     // Convert `len` to `u32` for `CMSG_SPACE`. This would be `try_into()` if
@@ -942,7 +944,7 @@ mod messages {
             let msghdr = {
                 let mut h = msghdr::zero_msghdr();
                 h.msg_control = buf.as_mut_ptr().cast();
-                h.msg_controllen = buf.len().try_into().expect("buffer too large for msghdr");
+                h.msg_controllen = buf.len().try_into().unwrap();
                 h
             };
 

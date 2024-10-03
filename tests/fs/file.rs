@@ -112,8 +112,8 @@ fn test_file() {
     // Test `fcntl_getfl`.
     let fl = rustix::fs::fcntl_getfl(&file).unwrap();
 
-    // Clear O_LARGEFILE, which may be set by rustix on 32-bit Linux or automatically by some
-    // kernel on 64-bit (Linux and illumos).
+    // Clear `O_LARGEFILE`, which may be set by rustix on 32-bit Linux or
+    // automatically by some kernel on 64-bit (Linux and illumos).
     #[cfg(any(linux_kernel, target_os = "illumos"))]
     let fl = fl - rustix::fs::OFlags::LARGEFILE;
 
@@ -184,4 +184,17 @@ fn test_setfl_append() {
     let mut buf = [0_u8; 32];
     assert_eq!(rustix::io::read(&file, &mut buf), Ok(19));
     assert_eq!(&buf, b"uvwdefghijklmnopxyz\0\0\0\0\0\0\0\0\0\0\0\0\0");
+}
+
+#[test]
+fn test_mode() {
+    use rustix::fs::{Mode, RawMode};
+
+    let mode = Mode::from_raw_mode((libc::S_IFSOCK | libc::S_IRUSR) as RawMode);
+    assert_eq!(mode, Mode::RUSR);
+    assert_eq!(mode.bits(), libc::S_IRUSR as RawMode);
+
+    let mode = Mode::from_raw_mode((libc::S_IFSOCK | libc::S_IRWXU) as RawMode);
+    assert_eq!(mode, Mode::RWXU);
+    assert_eq!(mode.bits(), libc::S_IRWXU as RawMode);
 }

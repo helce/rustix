@@ -7,13 +7,21 @@ use crate::io;
 use crate::thread::{NanosleepRelativeResult, Timespec};
 #[cfg(all(target_env = "gnu", fix_y2038))]
 use crate::timespec::LibcTimespec;
+#[cfg(all(
+    linux_kernel,
+    target_pointer_width = "32",
+    not(any(target_arch = "aarch64", target_arch = "x86_64"))
+))]
+use crate::utils::option_as_ptr;
 use core::mem::MaybeUninit;
+#[cfg(linux_kernel)]
+use core::sync::atomic::AtomicU32;
 #[cfg(linux_kernel)]
 use {
     crate::backend::conv::{borrowed_fd, ret_c_int, ret_usize},
     crate::fd::BorrowedFd,
     crate::pid::Pid,
-    crate::thread::{FutexFlags, FutexOperation},
+    crate::thread::futex,
     crate::utils::as_mut_ptr,
 };
 #[cfg(not(any(
@@ -415,15 +423,96 @@ pub(crate) fn setresgid_thread(
     unsafe { ret(setresgid(rgid.as_raw(), egid.as_raw(), sgid.as_raw())) }
 }
 
-// TODO: This could be de-multiplexed.
+/// # Safety
+///
+/// The raw pointers must point to valid aligned memory.
 #[cfg(linux_kernel)]
-pub(crate) unsafe fn futex(
-    uaddr: *mut u32,
-    op: FutexOperation,
-    flags: FutexFlags,
+pub(crate) unsafe fn futex_val2(
+    uaddr: *const AtomicU32,
+    op: super::futex::Operation,
+    flags: futex::Flags,
     val: u32,
-    utime: *const Timespec,
-    uaddr2: *mut u32,
+    val2: u32,
+    uaddr2: *const AtomicU32,
+    val3: u32,
+) -> io::Result<usize> {
+    // Pass `val2` in the least-significant bytes of the `timeout` argument.
+    // [“the kernel casts the timeout value first to unsigned long, then to
+    // uint32_t”], so we perform that exact conversion in reverse to create
+    // the pointer.
+    //
+    // [“the kernel casts the timeout value first to unsigned long, then to uint32_t”]: https://man7.org/linux/man-pages/man2/futex.2.html
+    let timeout = val2 as usize as *const Timespec;
+
+    #[cfg(all(
+        target_pointer_width = "32",
+        not(any(target_arch = "aarch64", target_arch = "x86_64"))
+    ))]
+    {
+        // TODO: Upstream this to the libc crate.
+        #[allow(non_upper_case_globals)]
+        const SYS_futex_time64: i32 = linux_raw_sys::general::__NR_futex_time64 as i32;
+
+        syscall! {
+            fn futex_time64(
+                uaddr: *const AtomicU32,
+                futex_op: c::c_int,
+                val: u32,
+                timeout: *const Timespec,
+                uaddr2: *const AtomicU32,
+                val3: u32
+            ) via SYS_futex_time64 -> c::ssize_t
+        }
+
+        ret_usize(futex_time64(
+            uaddr,
+            op as i32 | flags.bits() as i32,
+            val,
+            timeout,
+            uaddr2,
+            val3,
+        ))
+    }
+
+    #[cfg(any(
+        target_pointer_width = "64",
+        target_arch = "aarch64",
+        target_arch = "x86_64"
+    ))]
+    {
+        syscall! {
+            fn futex(
+                uaddr: *const AtomicU32,
+                futex_op: c::c_int,
+                val: u32,
+                timeout: *const linux_raw_sys::general::__kernel_timespec,
+                uaddr2: *const AtomicU32,
+                val3: u32
+            ) via SYS_futex -> c::c_long
+        }
+
+        ret_usize(futex(
+            uaddr,
+            op as i32 | flags.bits() as i32,
+            val,
+            timeout.cast(),
+            uaddr2,
+            val3,
+        ) as isize)
+    }
+}
+
+/// # Safety
+///
+/// The raw pointers must point to valid aligned memory.
+#[cfg(linux_kernel)]
+pub(crate) unsafe fn futex_timeout(
+    uaddr: *const AtomicU32,
+    op: super::futex::Operation,
+    flags: futex::Flags,
+    val: u32,
+    timeout: *const Timespec,
+    uaddr2: *const AtomicU32,
     val3: u32,
 ) -> io::Result<usize> {
     #[cfg(all(
@@ -437,11 +526,11 @@ pub(crate) unsafe fn futex(
 
         syscall! {
             fn futex_time64(
-                uaddr: *mut u32,
+                uaddr: *const AtomicU32,
                 futex_op: c::c_int,
                 val: u32,
                 timeout: *const Timespec,
-                uaddr2: *mut u32,
+                uaddr2: *const AtomicU32,
                 val3: u32
             ) via SYS_futex_time64 -> c::ssize_t
         }
@@ -450,7 +539,7 @@ pub(crate) unsafe fn futex(
             uaddr,
             op as i32 | flags.bits() as i32,
             val,
-            utime,
+            timeout,
             uaddr2,
             val3,
         ))
@@ -458,7 +547,7 @@ pub(crate) unsafe fn futex(
             // See the comments in `rustix_clock_gettime_via_syscall` about
             // emulation.
             if err == io::Errno::NOSYS {
-                futex_old(uaddr, op, flags, val, utime, uaddr2, val3)
+                futex_old_timespec(uaddr, op, flags, val, timeout, uaddr2, val3)
             } else {
                 Err(err)
             }
@@ -473,11 +562,11 @@ pub(crate) unsafe fn futex(
     {
         syscall! {
             fn futex(
-                uaddr: *mut u32,
+                uaddr: *const AtomicU32,
                 futex_op: c::c_int,
                 val: u32,
                 timeout: *const linux_raw_sys::general::__kernel_timespec,
-                uaddr2: *mut u32,
+                uaddr2: *const AtomicU32,
                 val3: u32
             ) via SYS_futex -> c::c_long
         }
@@ -486,47 +575,57 @@ pub(crate) unsafe fn futex(
             uaddr,
             op as i32 | flags.bits() as i32,
             val,
-            utime.cast(),
+            timeout.cast(),
             uaddr2,
             val3,
         ) as isize)
     }
 }
 
+/// # Safety
+///
+/// The raw pointers must point to valid aligned memory.
 #[cfg(linux_kernel)]
 #[cfg(all(
     target_pointer_width = "32",
     not(any(target_arch = "aarch64", target_arch = "x86_64"))
 ))]
-unsafe fn futex_old(
-    uaddr: *mut u32,
-    op: FutexOperation,
-    flags: FutexFlags,
+unsafe fn futex_old_timespec(
+    uaddr: *const AtomicU32,
+    op: super::futex::Operation,
+    flags: futex::Flags,
     val: u32,
-    utime: *const Timespec,
-    uaddr2: *mut u32,
+    timeout: *const Timespec,
+    uaddr2: *const AtomicU32,
     val3: u32,
 ) -> io::Result<usize> {
     syscall! {
         fn futex(
-            uaddr: *mut u32,
+            uaddr: *const AtomicU32,
             futex_op: c::c_int,
             val: u32,
             timeout: *const linux_raw_sys::general::__kernel_old_timespec,
-            uaddr2: *mut u32,
+            uaddr2: *const AtomicU32,
             val3: u32
         ) via SYS_futex -> c::c_long
     }
 
-    let old_utime = linux_raw_sys::general::__kernel_old_timespec {
-        tv_sec: (*utime).tv_sec.try_into().map_err(|_| io::Errno::INVAL)?,
-        tv_nsec: (*utime).tv_nsec.try_into().map_err(|_| io::Errno::INVAL)?,
+    let old_timeout = if timeout.is_null() {
+        None
+    } else {
+        Some(linux_raw_sys::general::__kernel_old_timespec {
+            tv_sec: (*timeout).tv_sec.try_into().map_err(|_| io::Errno::INVAL)?,
+            tv_nsec: (*timeout)
+                .tv_nsec
+                .try_into()
+                .map_err(|_| io::Errno::INVAL)?,
+        })
     };
     ret_usize(futex(
         uaddr,
         op as i32 | flags.bits() as i32,
         val,
-        &old_utime,
+        option_as_ptr(old_timeout.as_ref()),
         uaddr2,
         val3,
     ) as isize)
