@@ -37,10 +37,9 @@ jobs:
             os: ubuntu-latest
             rust: 1.63
 
-    # TODO: Reenable this once we can remove the redundant `Vec` imports.
-    #env:
-    #  # -D warnings is commented out in our install-rust action; re-add it here.
-    #  RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths --cfg criterion
+    env:
+      # -D warnings is commented out in our install-rust action; re-add it here.
+      RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths --cfg criterion
     steps:
     - uses: actions/checkout@v4
       with:
@@ -135,10 +134,9 @@ jobs:
             os: ubuntu-latest
             rust: nightly
 
-    # TODO: Reenable this once we can remove the redundant `Vec` imports.
-    #env:
-    #  # -D warnings is commented out in our install-rust action; re-add it here.
-    #  RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths
+    env:
+      # -D warnings is commented out in our install-rust action; re-add it here.
+      RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths
     steps:
     - uses: actions/checkout@v4
       with:
@@ -208,34 +206,25 @@ jobs:
     - run: rustup component add rust-src
     - run: cargo check -Z build-std --target x86_64-unknown-openbsd --all-targets --features=all-apis
     - run: cargo check -Z build-std --target mips64-openwrt-linux-musl --all-targets --features=all-apis
-    # Temporarily disable this because the target appears to have breakage on nightly.
-    # - run: cargo check -Z build-std --target x86_64-unknown-dragonfly --all-targets --features=all-apis
+    - run: cargo check -Z build-std --target x86_64-unknown-dragonfly --all-targets --features=all-apis
     - run: cargo check -Z build-std --target sparc-unknown-linux-gnu --all-targets --features=all-apis
-    # Temporarily disable this because the target appears to have changed and needs
-    # fixes and we transitively dev-depend on what can be an older version of rustix.
-    #- run: cargo check -Z build-std --target armv7-unknown-freebsd --all-targets --features=all-apis
-    # Omit --all-targets on gnu_ilp32 because dev-dependency tempfile depends on an older rustix
-    - run: cargo check -Z build-std --target aarch64-unknown-linux-gnu_ilp32 --features=all-apis
+    - run: cargo check -Z build-std --target armv7-unknown-freebsd --all-targets --features=all-apis
+    - run: cargo check -Z build-std --target aarch64-unknown-linux-gnu_ilp32 --all-targets --features=all-apis
     # Omit --all-targets on haiku because not all the tests build yet.
-    # Temporarily disable this because the target appears to have breakage on nightly.
-    #- run: cargo check -Z build-std --target x86_64-unknown-haiku --features=all-apis
-    # Temporarily disable this because the target appears to have breakage on nightly.
-    #- run: cargo check -Z build-std --target x86_64-uwp-windows-msvc --all-targets --features=all-apis
+    - run: cargo check -Z build-std --target x86_64-unknown-haiku --features=all-apis
+    - run: cargo check -Z build-std --target x86_64-uwp-windows-msvc --all-targets --features=all-apis
     # Temporarily disable riscv32imc-esp-espidf due to std using SOMAXCONN.
     #- run: cargo check -Z build-std --target=riscv32imc-esp-espidf --features=all-apis
     - run: cargo check -Z build-std --target=aarch64-unknown-nto-qnx710 --features=all-apis
     - run: cargo check -Z build-std --target=x86_64-pc-nto-qnx710 --features=all-apis
     # Temporarily disable --features=all-apis, which doesn't build yet.
-    # Temporarily disable this because the target appears to have breakage on nightly.
-    #- run: cargo check -Z build-std --target=armv6k-nintendo-3ds
+    - run: cargo check -Z build-std --target=armv6k-nintendo-3ds
     # Temporarily disable armv7-sony-vita-newlibeabihf due to std using SOMAXCONN.
     #- run: cargo check -Z build-std --target=armv7-sony-vita-newlibeabihf --features=all-apis
     # `std` doesn't appear to build on AIX yet, so test in `no_std` mode.
     - run: cargo check -Zbuild-std=core,alloc --target=powerpc64-ibm-aix --features=all-apis --no-default-features
-    # Disable MIPS entirely for now as it fails with errors like
-    # "Undefined temporary symbol $BB342_17".
-    #- run: cargo check -Z build-std --target=mipsel-unknown-linux-gnu --features=all-apis
-    #- run: cargo check -Z build-std --target=mips64el-unknown-linux-gnuabi64 --features=all-apis
+    - run: cargo check -Z build-std --target=mipsel-unknown-linux-gnu --features=all-apis
+    - run: cargo check -Z build-std --target=mips64el-unknown-linux-gnuabi64 --features=all-apis
 
 
   test:
@@ -493,7 +482,9 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/s390x-stat-have-nsec.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/aarch64-o-largefile.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/tcgets2-tcsets2.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'
@@ -567,8 +558,7 @@ jobs:
             qemu_target: arm-linux-user
     env:
       # -D warnings is commented out in our install-rust action; re-add it here.
-      # TODO: Reenable this once we can remove the redundant `Vec` imports.
-      #RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths
+      RUSTFLAGS: -D warnings -D elided-lifetimes-in-paths
       QEMU_BUILD_VERSION: 8.1.2
     steps:
     - uses: actions/checkout@v4
@@ -630,7 +620,9 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/s390x-stat-have-nsec.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/aarch64-o-largefile.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/tcgets2-tcsets2.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'
@@ -658,9 +650,7 @@ jobs:
             qemu_target: ppc64le-linux-user
     env:
       # -D warnings is commented out in our install-rust action; re-add it here.
-      # TODO: Reenable this once we can remove the redundant `Vec` imports.
-      #RUSTFLAGS: --cfg rustix_use_experimental_asm -D warnings -D elided-lifetimes-in-paths
-      RUSTFLAGS: --cfg rustix_use_experimental_asm
+      RUSTFLAGS: --cfg rustix_use_experimental_asm -D warnings -D elided-lifetimes-in-paths
       RUSTDOCFLAGS: --cfg rustix_use_experimental_asm
       CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_GNU_RUSTFLAGS: --cfg rustix_use_experimental_asm
       QEMU_BUILD_VERSION: 8.1.2
@@ -724,7 +714,9 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/s390x-stat-have-nsec.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/aarch64-o-largefile.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/tcgets2-tcsets2.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'
