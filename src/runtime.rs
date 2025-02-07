@@ -585,9 +585,10 @@ pub const SIGRTMAX: u32 = {
     // Use the actual `SIGRTMAX` value on platforms which define it.
     #[cfg(not(any(
         target_arch = "arm",
+        target_arch = "e2k",
+        target_arch = "s390x",
         target_arch = "x86",
         target_arch = "x86_64",
-        target_arch = "e2k"
     )))]
     {
         linux_raw_sys::general::SIGRTMAX
@@ -596,9 +597,10 @@ pub const SIGRTMAX: u32 = {
     // On platforms that don't, derive it from `_NSIG`.
     #[cfg(any(
         target_arch = "arm",
+        target_arch = "e2k",
+        target_arch = "s390x",
         target_arch = "x86",
         target_arch = "x86_64",
-        target_arch = "e2k"
     ))]
     {
         linux_raw_sys::general::_NSIG - 1
