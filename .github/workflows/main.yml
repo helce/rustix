@@ -79,9 +79,11 @@ jobs:
         sparcv9-sun-solaris
         aarch64-linux-android
         aarch64-apple-ios
-        wasm32-wasi
     - if: matrix.rust != '1.63'
-      run: rustup target add x86_64-unknown-fuchsia
+      run: >
+        rustup target add
+        wasm32-wasip1
+        x86_64-unknown-fuchsia
     - if: matrix.rust == '1.63'
       run: rustup target add x86_64-fuchsia
 
@@ -98,6 +100,8 @@ jobs:
     - run: cargo check --workspace --release -vv --target=x86_64-apple-darwin --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-freebsd --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-netbsd --features=all-apis --all-targets
+    - if: matrix.rust != '1.63'
+      run: cargo check --workspace --release -vv --target=wasm32-wasip1 --features=all-apis
     - if: matrix.rust != '1.63'
       run: cargo check --workspace --release -vv --target=x86_64-unknown-fuchsia --features=all-apis --all-targets
     - if: matrix.rust == '1.63'
@@ -121,7 +125,6 @@ jobs:
     - run: cargo check --workspace --release -vv --target=sparcv9-sun-solaris --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=aarch64-apple-ios --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=aarch64-linux-android --features=all-apis --all-targets
-    - run: cargo check --workspace --release -vv --target=wasm32-wasi --features=all-apis
 
   check_no_default_features:
     name: Check --no-default-features
@@ -176,10 +179,10 @@ jobs:
     - run: >
         rustup target add
         x86_64-unknown-redox
-        wasm32-wasi
+        wasm32-wasip1
         thumbv7neon-unknown-linux-gnueabihf
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-redox --features=all-apis
-    - run: cargo check --workspace --release -vv --target=wasm32-wasi --features=all-apis
+    - run: cargo check --workspace --release -vv --target=wasm32-wasip1 --features=all-apis
     - run: cargo check --workspace --release -vv --target=thumbv7neon-unknown-linux-gnueabihf --features=all-apis
 
   check_tier3:
@@ -237,7 +240,7 @@ jobs:
       RUSTFLAGS: --cfg rustix_use_experimental_features
     strategy:
       matrix:
-        build: [ubuntu, ubuntu-20.04, i686-linux, aarch64-linux, powerpc64le-linux, riscv64-linux, s390x-linux, arm-linux, ubuntu-stable, i686-linux-stable, aarch64-linux-stable, riscv64-linux-stable, s390x-linux-stable, powerpc64le-linux-stable, arm-linux-stable, ubuntu-1.63, i686-linux-1.63, aarch64-linux-1.63, riscv64-linux-1.63, s390x-linux-1.63, powerpc64le-linux-1.63, arm-linux-1.63, macos-latest, macos-12, windows, windows-2019, musl]
+        build: [ubuntu, ubuntu-20.04, i686-linux, aarch64-linux, powerpc64le-linux, riscv64-linux, s390x-linux, arm-linux, ubuntu-stable, i686-linux-stable, aarch64-linux-stable, riscv64-linux-stable, s390x-linux-stable, powerpc64le-linux-stable, arm-linux-stable, ubuntu-1.63, i686-linux-1.63, aarch64-linux-1.63, riscv64-linux-1.63, s390x-linux-1.63, powerpc64le-linux-1.63, arm-linux-1.63, macos-latest, macos-13, windows, windows-2019, musl]
         include:
           - build: ubuntu
             os: ubuntu-latest
@@ -410,8 +413,8 @@ jobs:
           - build: macos-latest
             os: macos-latest
             rust: stable
-          - build: macos-12
-            os: macos-12
+          - build: macos-13
+            os: macos-13
             rust: stable
           - build: windows
             os: windows-latest
@@ -447,7 +450,7 @@ jobs:
       run: |
         set -ex
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build
+        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build libglib2.0-dev
         upcase=$(echo ${{ matrix.target }} | awk '{ print toupper($0) }' | sed 's/-/_/g')
         echo CARGO_TARGET_${upcase}_LINKER=${{ matrix.gcc }} >> $GITHUB_ENV
       if: matrix.gcc_package != '' && matrix.os == 'ubuntu-latest'
@@ -486,6 +489,7 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/select-setsize.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'
@@ -509,7 +513,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [ubuntu, i686-linux, aarch64-linux, powerpc64le-linux, riscv64-linux, arm-linux]
+        build: [ubuntu, i686-linux, aarch64-linux, powerpc64le-linux, riscv64-linux, s390x-linux, arm-linux]
         include:
           - build: ubuntu
             os: ubuntu-latest
@@ -548,6 +552,15 @@ jobs:
             qemu: qemu-riscv64
             qemu_args: -L /usr/riscv64-linux-gnu
             qemu_target: riscv64-linux-user
+          - build: s390x-linux
+            os: ubuntu-latest
+            rust: stable
+            target: s390x-unknown-linux-gnu
+            gcc_package: gcc-s390x-linux-gnu
+            gcc: s390x-linux-gnu-gcc
+            qemu: qemu-s390x
+            qemu_args: -L /usr/s390x-linux-gnu
+            qemu_target: s390x-linux-user
           - build: arm-linux
             os: ubuntu-latest
             rust: stable
@@ -585,7 +598,7 @@ jobs:
       run: |
         set -ex
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build
+        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build libglib2.0-dev
         upcase=$(echo ${{ matrix.target }} | awk '{ print toupper($0) }' | sed 's/-/_/g')
         echo CARGO_TARGET_${upcase}_LINKER=${{ matrix.gcc }} >> $GITHUB_ENV
       if: matrix.gcc_package != '' && matrix.os == 'ubuntu-latest'
@@ -624,6 +637,7 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/select-setsize.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'
@@ -638,7 +652,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [powerpc64le-linux]
+        build: [powerpc64le-linux, s390x-linux]
         include:
           - build: powerpc64le-linux
             os: ubuntu-latest
@@ -649,11 +663,21 @@ jobs:
             qemu: qemu-ppc64le
             qemu_args: -L /usr/powerpc64le-linux-gnu
             qemu_target: ppc64le-linux-user
+          - build: s390x-linux
+            os: ubuntu-latest
+            rust: nightly
+            target: s390x-unknown-linux-gnu
+            gcc_package: gcc-s390x-linux-gnu
+            gcc: s390x-linux-gnu-gcc
+            qemu: qemu-s390x
+            qemu_args: -L /usr/s390x-linux-gnu
+            qemu_target: s390x-linux-user
     env:
       # -D warnings is commented out in our install-rust action; re-add it here.
       RUSTFLAGS: --cfg rustix_use_experimental_asm -D warnings -D elided-lifetimes-in-paths
       RUSTDOCFLAGS: --cfg rustix_use_experimental_asm
       CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_GNU_RUSTFLAGS: --cfg rustix_use_experimental_asm
+      CARGO_TARGET_S390X_UNKNOWN_LINUX_GNU_RUSTFLAGS: --cfg rustix_use_experimental_asm
       QEMU_BUILD_VERSION: 8.1.2
     steps:
     - uses: actions/checkout@v4
@@ -679,7 +703,7 @@ jobs:
       run: |
         set -ex
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build
+        sudo apt-get install -y ${{ matrix.gcc_package }} ninja-build libglib2.0-dev
         upcase=$(echo ${{ matrix.target }} | awk '{ print toupper($0) }' | sed 's/-/_/g')
         echo CARGO_TARGET_${upcase}_LINKER=${{ matrix.gcc }} >> $GITHUB_ENV
       if: matrix.gcc_package != '' && matrix.os == 'ubuntu-latest'
@@ -718,6 +742,7 @@ jobs:
         patch -p1 < $GITHUB_WORKSPACE/ci/tiocgsid.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/more-sockopts.patch
         patch -p1 < $GITHUB_WORKSPACE/ci/pidfd-open.patch
+        patch -p1 < $GITHUB_WORKSPACE/ci/select-setsize.patch
         ./configure --target-list=${{ matrix.qemu_target }} --prefix=${{ runner.tool_cache }}/qemu --disable-tools --disable-slirp --disable-fdt --disable-capstone --disable-docs
         ninja -C build install
       if: matrix.qemu != '' && matrix.os == 'ubuntu-latest'

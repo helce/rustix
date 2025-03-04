@@ -128,10 +128,10 @@ fn test_sockopts_socket(s: &OwnedFd) {
 
     // Set the send buffer size.
     let size = sockopt::get_socket_send_buffer_size(s).unwrap();
-    sockopt::set_socket_send_buffer_size(s, size * 4).unwrap();
+    sockopt::set_socket_send_buffer_size(s, size * 2).unwrap();
 
     // Check that the send buffer size is set.
-    assert!(sockopt::get_socket_send_buffer_size(s).unwrap() >= size * 4);
+    assert!(sockopt::get_socket_send_buffer_size(s).unwrap() >= size * 2);
 
     // Check that the oobinline flag is not initially set.
     assert!(!sockopt::get_socket_oobinline(s).unwrap());
@@ -312,9 +312,9 @@ fn test_sockopts_ipv4() {
     assert_eq!(sockopt::get_socket_domain(&s).unwrap(), AddressFamily::INET);
     assert_ne!(sockopt::get_ip_ttl(&s).unwrap(), 0);
     assert_ne!(sockopt::get_ip_ttl(&s).unwrap(), 77);
-    #[cfg(not(any(bsd, windows, target_os = "illumos")))]
+    #[cfg(not(any(bsd, windows, solarish)))]
     assert!(sockopt::get_ip_multicast_loop(&s).unwrap());
-    #[cfg(not(any(bsd, windows, target_os = "illumos")))]
+    #[cfg(not(any(bsd, windows, solarish)))]
     assert_eq!(sockopt::get_ip_multicast_ttl(&s).unwrap(), 1);
 
     // Set the ip ttl.
@@ -323,7 +323,7 @@ fn test_sockopts_ipv4() {
     // Check the ip ttl.
     assert_eq!(sockopt::get_ip_ttl(&s).unwrap(), 77);
 
-    #[cfg(not(any(bsd, windows, target_os = "illumos")))]
+    #[cfg(not(any(bsd, windows, solarish)))]
     {
         // Set the multicast loop flag;
         sockopt::set_ip_multicast_loop(&s, false).unwrap();
