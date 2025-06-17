@@ -74,6 +74,7 @@ fn test_child_subreaper() {
     dbg!(child_subreaper().unwrap());
 }
 
+#[cfg(not(target_arch = "e2k"))]
 #[test]
 fn test_speculative_feature_state() {
     dbg!(speculative_feature_state(SpeculationFeature::SpeculativeStoreBypass).unwrap());
