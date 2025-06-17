@@ -79,6 +79,7 @@ pub(in crate::backend) unsafe fn syscall1_noreturn(nr: SyscallNumber<'_>, a0: Ar
     asm!(
         "sdisp %ctpr1, 0x3",
         "call %ctpr1, wbs = %#",
+        "ldd 0, 0, %r0",
         in("b[0]") nr.to_asm(),
         in("b[1]") a0.to_asm(),
         options(nostack, noreturn)
