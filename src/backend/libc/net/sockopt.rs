@@ -20,6 +20,7 @@ use crate::net::xdp::{XdpMmapOffsets, XdpOptionsFlags, XdpRingOffset, XdpStatist
     apple,
     windows,
     target_os = "aix",
+    target_os = "cygwin",
     target_os = "dragonfly",
     target_os = "emscripten",
     target_os = "espidf",
@@ -379,6 +380,7 @@ pub(crate) fn socket_send_buffer_size(fd: BorrowedFd<'_>) -> io::Result<usize> {
     apple,
     windows,
     target_os = "aix",
+    target_os = "cygwin",
     target_os = "dragonfly",
     target_os = "emscripten",
     target_os = "espidf",
@@ -412,13 +414,13 @@ pub(crate) fn socket_oobinline(fd: BorrowedFd<'_>) -> io::Result<bool> {
     getsockopt(fd, c::SOL_SOCKET, c::SO_OOBINLINE).map(to_bool)
 }
 
-#[cfg(not(any(solarish, windows)))]
+#[cfg(not(any(solarish, windows, target_os = "cygwin")))]
 #[inline]
 pub(crate) fn set_socket_reuseport(fd: BorrowedFd<'_>, value: bool) -> io::Result<()> {
     setsockopt(fd, c::SOL_SOCKET, c::SO_REUSEPORT, from_bool(value))
 }
 
-#[cfg(not(any(solarish, windows)))]
+#[cfg(not(any(solarish, windows, target_os = "cygwin")))]
 #[inline]
 pub(crate) fn socket_reuseport(fd: BorrowedFd<'_>) -> io::Result<bool> {
     getsockopt(fd, c::SOL_SOCKET, c::SO_REUSEPORT).map(to_bool)
