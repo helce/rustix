@@ -5,8 +5,10 @@ fn xattr_basic() {
     use rustix::fs::XattrFlags;
 
     // The error code when an attribute doesn't exist.
-    #[cfg(not(apple))]
+    #[cfg(all(not(apple), not(target_arch = "e2k")))]
     let enodata = libc::ENODATA;
+    #[cfg(all(not(apple), target_arch = "e2k"))]
+    let enodata = libc::EOPNOTSUPP;
     #[cfg(apple)]
     let enodata = libc::ENOATTR;
 
