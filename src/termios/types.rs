@@ -1565,9 +1565,10 @@ mod tests {
     #[test]
     #[cfg(not(any(
         solarish,
+        target_os = "cygwin",
         target_os = "emscripten",
         target_os = "haiku",
-        target_os = "redox"
+        target_os = "redox",
     )))]
     fn termios_legacy() {
         // Check that our doc aliases above are correct.

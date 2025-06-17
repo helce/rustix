@@ -311,6 +311,7 @@ impl Signal {
                 bsd,
                 solarish,
                 target_os = "aix",
+                target_os = "cygwin",
                 target_os = "haiku",
                 target_os = "horizon",
                 target_os = "hurd",
