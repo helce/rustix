@@ -1283,7 +1283,7 @@ pub(crate) fn fadvise(
     // turn a very large value into a negative value.
     //
     // On FreeBSD, this could cause `posix_fadvise` to fail with
-    // `Errrno::INVAL`. Because we don't expose the signed type in our API, we
+    // `Errno::INVAL`. Because we don't expose the signed type in our API, we
     // also avoid exposing this artifact of casting an unsigned value to the
     // signed type. To do this, we use a no-op call in this case.
     //
@@ -1298,7 +1298,7 @@ pub(crate) fn fadvise(
 
         #[cold]
         fn fadvise_noop(fd: BorrowedFd<'_>) -> io::Result<()> {
-            // Us an `fcntl` to report `Errno::EBADF` if needed, but otherwise
+            // Use an `fcntl` to report `Errno::BADF` if needed, but otherwise
             // do nothing.
             fcntl_getfl(fd).map(|_| ())
         }
@@ -2654,26 +2654,13 @@ pub(crate) fn fremovexattr(fd: BorrowedFd<'_>, name: &CStr) -> io::Result<()> {
 /// See [`crate::timespec::fix_negative_nsec`] for details.
 #[cfg(apple)]
 fn fix_negative_stat_nsecs(mut stat: Stat) -> Stat {
-    stat.st_atime_nsec =
-        crate::timespec::fix_negative_nsecs(&mut stat.st_atime, stat.st_atime_nsec as _) as _;
-    stat.st_mtime_nsec =
-        crate::timespec::fix_negative_nsecs(&mut stat.st_mtime, stat.st_mtime_nsec as _) as _;
-    stat.st_ctime_nsec =
-        crate::timespec::fix_negative_nsecs(&mut stat.st_ctime, stat.st_ctime_nsec as _) as _;
+    (stat.st_atime, stat.st_atime_nsec) =
+        crate::timespec::fix_negative_nsecs(stat.st_atime, stat.st_atime_nsec);
+    (stat.st_mtime, stat.st_mtime_nsec) =
+        crate::timespec::fix_negative_nsecs(stat.st_mtime, stat.st_mtime_nsec);
+    (stat.st_ctime, stat.st_ctime_nsec) =
+        crate::timespec::fix_negative_nsecs(stat.st_ctime, stat.st_ctime_nsec);
     stat
-}
-
-#[test]
-fn test_sizes() {
-    #[cfg(linux_kernel)]
-    assert_eq_size!(c::loff_t, u64);
-
-    // Assert that `Timestamps` has the expected layout. If we're not fixing
-    // y2038, libc's type should match ours. If we are, it's smaller.
-    #[cfg(not(fix_y2038))]
-    assert_eq_size!([c::timespec; 2], Timestamps);
-    #[cfg(fix_y2038)]
-    assert!(core::mem::size_of::<[c::timespec; 2]>() < core::mem::size_of::<Timestamps>());
 }
 
 #[inline]
@@ -2710,4 +2697,22 @@ pub(crate) fn inotify_rm_watch(inot: BorrowedFd<'_>, wd: i32) -> io::Result<()> 
     let wd = wd as u32;
     // SAFETY: The fd is valid and closing an arbitrary wd is valid.
     unsafe { ret(c::inotify_rm_watch(borrowed_fd(inot), wd)) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sizes() {
+        #[cfg(linux_kernel)]
+        assert_eq_size!(c::loff_t, u64);
+
+        // Assert that `Timestamps` has the expected layout. If we're not fixing
+        // y2038, libc's type should match ours. If we are, it's smaller.
+        #[cfg(not(fix_y2038))]
+        assert_eq_size!([c::timespec; 2], Timestamps);
+        #[cfg(fix_y2038)]
+        assert!(core::mem::size_of::<[c::timespec; 2]>() < core::mem::size_of::<Timestamps>());
+    }
 }
