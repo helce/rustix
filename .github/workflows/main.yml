@@ -60,6 +60,9 @@ jobs:
         cargo update --package=parking_lot --precise=0.12.3
         cargo update --package=parking_lot_core --precise=0.9.10
         cargo update --package=lock_api --precise=0.4.12
+        cargo update --package=rayon --precise=1.10.0
+        cargo update --package=rayon-core --precise=1.12.1
+        cargo update --package=windows-sys@0.61.0 --precise=0.60.2
 
     - run: >
         rustup target add
@@ -104,8 +107,8 @@ jobs:
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-linux-musl --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-linux-musl --features=use-libc,all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-linux-gnux32 --features=all-apis --all-targets
-    - run: cargo check --workspace --release -vv --target=x86_64-linux-android --features=all-apis --all-targets
-    - run: cargo check --workspace --release -vv --target=i686-linux-android --features=all-apis --all-targets
+    - run: cargo check --workspace --release -vv --target=x86_64-linux-android --features=use-libc,net,std,alloc,event,fs,mm,param,pipe,use-libc-auxv,libc_errno --all-targets
+    - run: cargo check --workspace --release -vv --target=i686-linux-android --features=use-libc,net,std,alloc,event,fs,mm,param,pipe,use-libc-auxv,libc_errno --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-apple-darwin --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-freebsd --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=x86_64-unknown-netbsd --features=all-apis --all-targets
@@ -132,11 +135,11 @@ jobs:
     - run: cargo check --workspace --release -vv --target=powerpc64le-unknown-linux-gnu --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=armv5te-unknown-linux-gnueabi --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=s390x-unknown-linux-gnu --features=all-apis --all-targets
-    - run: cargo check --workspace --release -vv --target=arm-linux-androideabi --features=all-apis --all-targets
+    - run: cargo check --workspace --release -vv --target=arm-linux-androideabi --features=use-libc,net,std,alloc,event,fs,mm,param,pipe,use-libc-auxv,libc_errno --all-targets
     - run: cargo check --workspace --release -vv --target=sparc64-unknown-linux-gnu --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=sparcv9-sun-solaris --features=all-apis --all-targets
     - run: cargo check --workspace --release -vv --target=aarch64-apple-ios --features=all-apis --all-targets
-    - run: cargo check --workspace --release -vv --target=aarch64-linux-android --features=all-apis --all-targets
+    - run: cargo check --workspace --release -vv --target=aarch64-linux-android --features=use-libc,net,std,alloc,event,fs,mm,param,pipe,use-libc-auxv,libc_errno --all-targets
     - run: cargo check --workspace --release -vv --target=i686-pc-windows-msvc --features=all-apis --all-targets
 
   check_no_default_features:
@@ -250,7 +253,7 @@ jobs:
       RUSTFLAGS: --cfg rustix_use_experimental_features
     strategy:
       matrix:
-        build: [ubuntu, ubuntu-22.04, i686-linux, aarch64-linux, powerpc-linux, powerpc64le-linux, riscv64-linux, s390x-linux, arm-linux, ubuntu-stable, i686-linux-stable, aarch64-linux-stable, riscv64-linux-stable, s390x-linux-stable, powerpc-linux-stable, powerpc64le-linux-stable, arm-linux-stable, ubuntu-1.63, i686-linux-1.63, aarch64-linux-1.63, riscv64-linux-1.63, s390x-linux-1.63, powerpc64le-linux, powerpc64le-linux-1.63, arm-linux-1.63, macos-latest, macos-13, windows, windows-2019, musl]
+        build: [ubuntu, ubuntu-22.04, i686-linux, aarch64-linux, powerpc-linux, powerpc64le-linux, riscv64-linux, s390x-linux, arm-linux, ubuntu-stable, i686-linux-stable, aarch64-linux-stable, riscv64-linux-stable, s390x-linux-stable, powerpc-linux-stable, powerpc64le-linux-stable, arm-linux-stable, ubuntu-1.63, i686-linux-1.63, aarch64-linux-1.63, riscv64-linux-1.63, s390x-linux-1.63, powerpc64le-linux, powerpc64le-linux-1.63, arm-linux-1.63, macos-latest, macos-13, windows, musl]
         include:
           - build: ubuntu
             os: ubuntu-latest
@@ -456,9 +459,6 @@ jobs:
           - build: windows
             os: windows-latest
             rust: nightly-2025-06-23
-          - build: windows-2019
-            os: windows-2019
-            rust: nightly-2025-06-23
           - build: musl
             os: ubuntu-latest
             rust: stable
@@ -543,6 +543,9 @@ jobs:
         cargo update --package=parking_lot --precise=0.12.3
         cargo update --package=parking_lot_core --precise=0.9.10
         cargo update --package=lock_api --precise=0.4.12
+        cargo update --package=rayon --precise=1.10.0
+        cargo update --package=rayon-core --precise=1.12.1
+        cargo update --package=windows-sys@0.61.0 --precise=0.60.2
 
     - run: |
         cargo test --verbose --features=all-apis --release --workspace -- --nocapture

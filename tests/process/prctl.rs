@@ -7,7 +7,7 @@ use {
 
 use rustix::process::*;
 #[cfg(feature = "thread")]
-use rustix::thread::Capability;
+use rustix::thread::CapabilitySet;
 
 #[test]
 fn test_parent_process_death_signal() {
@@ -88,7 +88,7 @@ fn test_speculative_feature_state() {
 #[cfg(feature = "thread")]
 #[test]
 fn test_is_io_flusher() {
-    if !thread_has_capability(Capability::SystemResource).unwrap() {
+    if !thread_has_capability(CapabilitySet::SYS_RESOURCE).unwrap() {
         eprintln!("test_is_io_flusher: Test skipped due to missing capability: CAP_SYS_RESOURCE.");
         return;
     }
@@ -100,7 +100,7 @@ fn test_is_io_flusher() {
 #[cfg(feature = "system")]
 #[test]
 fn test_virtual_memory_map_config_struct_size() {
-    if !thread_has_capability(Capability::SystemResource).unwrap() {
+    if !thread_has_capability(CapabilitySet::SYS_RESOURCE).unwrap() {
         eprintln!(
             "test_virtual_memory_map_config_struct_size: Test skipped due to missing capability: \
              CAP_SYS_RESOURCE."
@@ -130,7 +130,7 @@ fn test_floating_point_emulation_control() {
 //
 
 #[cfg(feature = "thread")]
-pub(crate) fn thread_has_capability(capability: Capability) -> io::Result<bool> {
+pub(crate) fn thread_has_capability(capability: CapabilitySet) -> io::Result<bool> {
     const _LINUX_CAPABILITY_VERSION_3: u32 = 0x2008_0522;
 
     #[repr(C)]
@@ -176,7 +176,9 @@ pub(crate) fn thread_has_capability(capability: Capability) -> io::Result<bool> 
         return Err(io::Error::last_os_error());
     }
 
-    let cap_index = capability as u32;
+    let cap_bits = capability.bits();
+    assert_eq!(cap_bits.count_ones(), 1);
+    let cap_index = cap_bits.leading_zeros();
     let (data_index, cap_index) = if cap_index < 32 {
         (0, cap_index)
     } else {

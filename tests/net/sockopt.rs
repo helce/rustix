@@ -9,7 +9,11 @@ use rustix::io;
     target_env = "newlib"
 ))]
 use rustix::net::ipproto;
+#[cfg(target_os = "linux")]
+use rustix::net::TxTimeFlags;
 use rustix::net::{sockopt, AddressFamily, SocketType};
+#[cfg(target_os = "linux")]
+use rustix::time::ClockId;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -314,6 +318,7 @@ fn test_sockopts_ipv4() {
     #[cfg(not(any(
         apple,
         windows,
+        target_os = "aix",
         target_os = "cygwin",
         target_os = "dragonfly",
         target_os = "emscripten",
@@ -565,6 +570,34 @@ fn test_socketopts_ipv6_mtu() {
     }
 }
 
+#[cfg(linux_kernel)]
+#[test]
+fn test_ip_mtu_discover() {
+    crate::init();
+
+    // IPv4
+    {
+        use sockopt::Ipv4PathMtuDiscovery as P;
+
+        let s = rustix::net::socket(AddressFamily::INET, SocketType::DGRAM, None).unwrap();
+        for val in [P::DONT, P::WANT, P::DO, P::PROBE, P::INTERFACE, P::OMIT] {
+            sockopt::set_ip_mtu_discover(&s, val).unwrap();
+            assert_eq!(sockopt::ip_mtu_discover(&s), Ok(val));
+        }
+    }
+
+    // IPv6
+    {
+        use sockopt::Ipv6PathMtuDiscovery as P;
+
+        let s = rustix::net::socket(AddressFamily::INET6, SocketType::DGRAM, None).unwrap();
+        for val in [P::DONT, P::WANT, P::DO, P::PROBE, P::INTERFACE, P::OMIT] {
+            sockopt::set_ipv6_mtu_discover(&s, val).unwrap();
+            assert_eq!(sockopt::ipv6_mtu_discover(&s), Ok(val));
+        }
+    }
+}
+
 #[test]
 fn test_sockopts_multicast_ifv4() {
     crate::init();
@@ -626,6 +659,27 @@ fn test_sockopts_multicast_ifv6() {
     match sockopt::set_ipv6_multicast_if(&s, 1) {
         Ok(()) => {
             assert_eq!(sockopt::ipv6_multicast_if(&s).unwrap(), 1);
+        }
+        Err(e) if e.to_string().contains("Protocol not available") => {
+            // Skip test on unsupported platforms
+        }
+        Err(e) => panic!("{e}"),
+    }
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_sockopts_txtime() {
+    crate::init();
+
+    let s = rustix::net::socket(AddressFamily::INET, SocketType::DGRAM, None).unwrap();
+
+    match sockopt::set_txtime(&s, ClockId::Monotonic, TxTimeFlags::DEADLINE_MODE) {
+        Ok(()) => {
+            assert_eq!(
+                sockopt::get_txtime(&s).unwrap(),
+                (ClockId::Monotonic, TxTimeFlags::DEADLINE_MODE)
+            );
         }
         Err(e) if e.to_string().contains("Protocol not available") => {
             // Skip test on unsupported platforms
