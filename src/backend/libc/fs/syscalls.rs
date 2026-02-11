@@ -1877,7 +1877,7 @@ pub(crate) fn openat2(
 }
 #[cfg(all(linux_kernel, target_pointer_width = "32"))]
 const SYS_OPENAT2: i32 = 437;
-#[cfg(all(linux_kernel, target_pointer_width = "64", not(target_arch = "e2k"))]
+#[cfg(all(linux_kernel, target_pointer_width = "64", not(target_arch = "e2k")))]
 const SYS_OPENAT2: i64 = 437;
 #[cfg(all(linux_kernel, target_arch = "e2k"))]
 const SYS_OPENAT2: i64 = 432;
