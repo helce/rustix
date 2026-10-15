@@ -771,7 +771,7 @@ pub struct Stat {
     pub st_nlink: ffi::c_uint,
     pub st_uid: ffi::c_uint,
     pub st_gid: ffi::c_uint,
-    pub st_rdev: ffi::c_uint,
+    pub st_rdev: ffi::c_ulong,
     pub st_size: ffi::c_long,
     pub st_blksize: ffi::c_long,
     pub st_blocks: ffi::c_long,

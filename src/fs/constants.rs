@@ -96,7 +96,6 @@ mod tests {
         // Check that various fields match expected types.
         assert_eq!(some_stat.st_mode, 0 as RawMode);
         assert_eq!(some_stat.st_dev, 0 as Dev);
-        #[cfg(not(target_arch = "e2k"))]
         assert_eq!(some_stat.st_rdev, 0 as Dev);
         assert_eq!(some_stat.st_uid, 0 as crate::ugid::RawUid);
         assert_eq!(some_stat.st_gid, 0 as crate::ugid::RawGid);
